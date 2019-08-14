@@ -25,7 +25,7 @@ class Payson_Payson_Model_Standard extends Mage_Payment_Model_Method_Abstract
 	protected $_canUseInternal				= true;
 	protected $_canUseCheckout				= true;
 	protected $_canUseForMultishipping		= false;
-	protected $_isInitializeNeeded			= true;
+	protected $_isInitializeNeeded			= false;
 	protected $_canFetchTransactionInfo		= false;
 	protected $_canReviewPayment			= false;
 	protected $_canCreateBillingAgreement	= false;

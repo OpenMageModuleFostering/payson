@@ -87,7 +87,7 @@
 							<show_in_website>1</show_in_website>
 							<show_in_store>1</show_in_store>
 						</active>
-                                                <activate_invoice translate="label,comment">
+                                                <!--<activate_invoice translate="label,comment">
 							<label>Activate invoice on purchase</label>
 							<comment>Enable this to send Payson invoice to customer instantly after purchase. Disabling this means you have to mark the goods as Shipped in Admin to activate the invoice</comment>
 							<frontend_type>select</frontend_type>
@@ -96,7 +96,7 @@
 							<show_in_default>1</show_in_default>
 							<show_in_website>1</show_in_website>
 							<show_in_store>1</show_in_store>
-						</activate_invoice>
+						</activate_invoice>-->
 						<invoice_fee_tax translate="label,comment">
 							<label>Invoice fee tax</label>
 							<comment>Tax class for invoice fees.</comment>
@@ -125,6 +125,16 @@
 							<show_in_website>1</show_in_website>
 							<show_in_store>1</show_in_store>
 						</invoice_fee_eur>
+                                                
+                                                <!--<invoice_minimum_amount  translate="label,comment">
+							<label>Invoice minimum amount (SEK)</label>
+							<comment>Invoice minimum amount</comment>
+							<frontend_type>text</frontend_type>
+							<sort_order>42</sort_order>
+							<show_in_default>1</show_in_default>
+							<show_in_website>1</show_in_website>
+							<show_in_store>1</show_in_store>
+						</invoice_minimum_amount>-->
 					</fields>
 				</payson_invoice>
 			</groups>

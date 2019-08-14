@@ -53,12 +53,11 @@ class Payson_Payson_CheckoutController extends Mage_Core_Controller_Front_Action
 
 		if(!is_null($order = $this->GetOrder()))
 		{
-			/*$order->setState(
+			$order->setState(
 				Mage_Sales_Model_Order::STATE_CANCELED,
 				Mage_Sales_Model_Order::STATE_CANCELED,
 				$message)
-				->cancel()->save();*/
-				$order->cancel()->save();
+				->cancel()->save();
 		}
 
 		return $this;
@@ -70,7 +69,7 @@ class Payson_Payson_CheckoutController extends Mage_Core_Controller_Front_Action
 
 	public function redirectAction()
 	{
-		$order = $this->GetOrder();
+                $order = $this->GetOrder();
 
 		if(is_null($order))
 		{
@@ -102,14 +101,35 @@ class Payson_Payson_CheckoutController extends Mage_Core_Controller_Front_Action
 
 	public function returnAction()
 	{
-            // Send a new order email when we are back from Payson
-            $this->GetOrder()->sendNewOrderEmail();
-                
-            $this->_redirect('checkout/onepage/success');
+             
+           $ipnStatus = Mage::helper('payson/api')->getIpnStatus(Mage::getSingleton('checkout/session')->getLastRealOrderId());
+           //print_r($ipnStatus);exit;
+           switch($ipnStatus['ipn_status'])
+           {
+               case 'COMPLETED':
+               case 'PENDING':
+               case 'PROCESSING':
+               case 'CREDITED':
+               {
+                   $this->GetOrder()->sendNewOrderEmail();
+                   $this->_redirect('checkout/onepage/success');
+                   break;
+               }
+               case 'ERROR':
+               {
+                   Mage::helper('payson/api')->paysonApiError(sprintf(Mage::helper('payson')->__('The payment was denied by Payson. Please, try a different payment method')));
+                   break;
+               }
+               default:
+               {
+                   Mage::helper('payson/api')->paysonApiError(sprintf(Mage::helper('payson')->__('Something went wrong with the payment. Please, try a different payment method')));
+                   break;
+               }       
+           } 
 	}
 
 	public function cancelAction()
 	{
-		$this->CancelOrder()->_redirect('checkout/cart');
+            $this->CancelOrder()->_redirect('checkout/cart');
 	}
 }

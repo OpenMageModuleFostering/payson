@@ -224,11 +224,11 @@ class Payson_Payson_Model_Config
 			'payment/payson_invoice/');
 	}
         
-        public function ActivateInvoiceOnPurchase($store = null)
+       /* public function ActivateInvoiceOnPurchase($store = null)
 	{
 		return $this->GetConfig('activate_invoice', $store, false, 
 			'payment/payson_invoice/');
-	}
+	}*/
         
         
 }

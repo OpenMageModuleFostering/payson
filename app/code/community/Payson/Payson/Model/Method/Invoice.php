@@ -18,6 +18,8 @@ class Payson_Payson_Model_Method_Invoice
 	protected $_canCapture		= true;
 	protected $_canRefund		= true;
 	protected $_canVoid		= true;
+        //protected $_canUseCheckout     = true;
+        private $invoiceAmountMinLimit = 30;
 
 	/*
 	 * Public methods
@@ -72,6 +74,8 @@ class Payson_Payson_Model_Method_Invoice
 	 */
 	public function getTitle()
 	{
+            //if(Mage::getSingleton('checkout/cart')->getQuote()->getGrandTotal() >> 30)
+                // echo Mage::getSingleton('checkout/cart')->getQuote()->getGrandTotal(); //$this->_canUseCheckout = false;
 		$order = Mage::registry('current_order');
 
 		if(!isset($order) && ($invoice = Mage::registry('current_invoice')))
@@ -103,8 +107,32 @@ class Payson_Payson_Model_Method_Invoice
 		$invoice_fee = strip_tags($invoice_fee);
 
 		return sprintf(Mage::helper('payson')
-			->__('Checkout with Payson invoice %s'), 
-				($invoice_fee ? '(+' . $invoice_fee . ')' : ''));
+			->__('Checkout with Payson invoice %s invoice fee'), 
+				($invoice_fee ? '+' . $invoice_fee : ''));
 	}
+        
+        public function canUseCheckout()
+        {
+            if($this->isSweden()){
+                if(Mage::getSingleton('checkout/cart')->getQuote()->getGrandTotal() < $this->invoiceAmountMinLimit)
+                    return false;
+                else 
+                    return true;
+
+            }
+            return false;
+        }
+        
+        public function isSweden()
+        {
+            $checkout = Mage::getSingleton('checkout/session')->getQuote();
+            $billing = $checkout->getBillingAddress(); 
+            //$shipping = $checkout->getShippingAddress();
+            if(strtoupper($billing->getCountry()) != 'SE')
+                return false;
+            else 
+                return true;
+            
+        }
 }
 

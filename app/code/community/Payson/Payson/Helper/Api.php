@@ -13,9 +13,13 @@ class Payson_Payson_Helper_Api
 
 	const PAY_FORWARD_URL = '%s://%s%s.payson.%s/paySecure/';
 
-	const APPLICATION_ID = 'Magento Module 0.1.2';
+	const APPLICATION_ID = 'Magento Module 0.1.3';
 	const MODULE_NAME = 'payson_magento';
-	const MODULE_VERSION = '1.5';
+	const MODULE_VERSION = '0.1.3';
+        
+        const DEBUG_MODE_MAIL = 'testagent-1@payson.se';
+        const DEBUG_MODE_AGENT_ID = '1';
+        const DEBUG_MODE_MD5 = 'fddb19ac-7470-42b6-a91d-072cb1495f0a';
 
 	const STATUS_CREATED		= 'CREATED';
 	const STATUS_PENDING		= 'PENDING';
@@ -61,6 +65,8 @@ class Payson_Payson_Helper_Api
 	 */
 
 	private $response;
+        
+        private $order_discount_item = 0.0;
 
 	/*
 	 * Private methods
@@ -75,12 +81,12 @@ class Payson_Payson_Helper_Api
 		$http_client->setMethod(Zend_Http_Client::POST)
 			->setHeaders(array
 				(
-					'PAYSON-SECURITY-USERID'	=> $config->Get('agent_id'),
-					'PAYSON-SECURITY-PASSWORD'	=> $config->Get('md5_key'),
+					'PAYSON-SECURITY-USERID'	=> $config->get('test_mode') ? self::DEBUG_MODE_AGENT_ID : $config->Get('agent_id'),
+					'PAYSON-SECURITY-PASSWORD'	=> $config->get('test_mode') ? self::DEBUG_MODE_MD5 : $config->Get('md5_key'),
 					'PAYSON-APPLICATION-ID'		=> self::APPLICATION_ID,
 					'PAYSON-MODULE-INFO'		=> self::MODULE_NAME.'|'.self::MODULE_VERSION.'|'.Mage::getVersion()
 				));
-
+                               
 		return $http_client->resetParameters();
 	}
 
@@ -91,6 +97,13 @@ class Payson_Payson_Helper_Api
 
 		return $this;
 	}
+        
+        private function SetOrderDiscountItem($item, &$total)
+	{
+                $total -= $item->getData('discount_amount');
+                $this->order_discount_item += $item->getData('discount_amount');
+                
+        }
 
 	/**
 	 * Helper for Pay()
@@ -140,7 +153,11 @@ class Payson_Payson_Helper_Api
 		$qty = round($qty, 2);
 
 		$price = (float)$item->getData('row_total_incl_tax');
-		$price -= (float)$item->getData('discount_amount');
+               /* print_r($item->getData('base_price'));
+                echo '<br />';
+                echo '<br />';
+                print_r($item);exit;*/
+		//$price -= (float)$item->getData('discount_amount');
 
 		$base_price = (($price / (1 + $tax_mod)) / $qty);
 		$base_price = round($base_price, 3);
@@ -156,7 +173,7 @@ class Payson_Payson_Helper_Api
 				'orderItemList.orderItem(' . $i . ').quantity'		=>
 					$qty,
 				'orderItemList.orderItem(' . $i . ').unitPrice'		=>
-					$base_price,
+					$item->getData('base_price'),
 				'orderItemList.orderItem(' . $i . ').taxPercentage'	=>
 					$tax_mod
 			);
@@ -213,7 +230,6 @@ class Payson_Payson_Helper_Api
 						$tax_mod
 				);
 		}
-
 		return $args;
 	}
 
@@ -306,8 +322,8 @@ class Payson_Payson_Helper_Api
 				'senderLastName'					=>
 					$billing_address->getLastname(),
 				'receiverList.receiver(0).email'	=>
-					$config->Get('email'),
-				'purchaseId'						=> $order->getRealOrderId()
+					$config->get('test_mode') ? self::DEBUG_MODE_MAIL : $config->Get('email'),
+				'trackingId'						=> $order->getRealOrderId()
 			);
 
 		if(!$config->CanPaymentGuarantee())
@@ -334,11 +350,32 @@ class Payson_Payson_Helper_Api
 		{
 			$args += $this->GetOrderItemInfo($item, $i++, $total);
 		}
-
+                
+               foreach($order->getAllVisibleItems() as $item)
+		{
+                    $this->SetOrderDiscountItem($item, $total);
+                }
+                if($this->order_discount_item >> 0){
+                    $args += array
+                            (
+                                    'orderItemList.orderItem(' . $i . ').description'	=>
+                                            'discount',
+                                    'orderItemList.orderItem(' . $i . ').sku'			=>
+                                            'discount',
+                                    'orderItemList.orderItem(' . $i . ').quantity'		=>
+                                            1,
+                                    'orderItemList.orderItem(' . $i . ').unitPrice'		=>
+                                            -$this->order_discount_item,
+                                    'orderItemList.orderItem(' . $i . ').taxPercentage'	=>
+                                            0.0
+                            );
+                }
 		// Calculate price for shipping
 		$args += $this->GetOrderShippingInfo($order, $customer, $store, $i++,
 			$total);
-
+              /*  echo '<pre>';
+                print_r($args);
+                echo '</pre>';exit;*/
 		if($order->getPaysonInvoiceFee() > 0)
 		{
 			$fee = $order->getPaysonInvoiceFee();
@@ -406,6 +443,7 @@ class Payson_Payson_Helper_Api
 
 		if(!$response->IsValid())
 		{
+            
 			throw new Mage_Core_Exception(sprintf($helper->__(
 				'Failed to initialize payment. Payson replied: %s'),
 				$response->GetError()), $response->GetErrorId());
@@ -549,7 +587,8 @@ LIMIT
 				$order->setState(
 					Mage_Sales_Model_Order::STATE_PROCESSING,
 					Mage_Sales_Model_Order::STATE_PROCESSING,
-					$helper->__('Payson completed the order payment'));
+					//$helper->__('Payson completed the order payment XXXXXXX'));
+                                        $config->get('test_mode') ? $helper->__('Payson test completed the order payment') : $helper->__('Payson completed the order payment'));
 					
 					//It creates the invoice to the order
 					$invoice = Mage::getModel('sales/service_order', $order)->prepareInvoice();
@@ -606,10 +645,11 @@ catch(Exception $e)
 					$order->setState(
 						Mage_Sales_Model_Order::STATE_PROCESSING,
 						Mage_Sales_Model_Order::STATE_PROCESSING,
-						$helper->__('Payson created an invoice'));
+                                                //$helper->__('Payson created an invoice'));
+						$config->get('test_mode') ? $helper->__('Payson test created an invoice'): $helper->__('Payson created an invoice'));
 						
 						//It creates the invoice to the order
-                                                if($config->ActivateInvoiceOnPurchase())
+                                                /*if($config->ActivateInvoiceOnPurchase())
                                                 {
                                                     $invoice = Mage::getModel('sales/service_order', $order)->prepareInvoice();
                                                     $invoice->setRequestedCaptureCase(Mage_Sales_Model_Order_Invoice::CAPTURE_ONLINE); 
@@ -618,7 +658,7 @@ catch(Exception $e)
                                                     ->addObject($invoice) 
                                                     ->addObject($invoice->getOrder()); 
                                                     $transactionSave->save(); 
-                                                }
+                                                }*/
 						
 					if(isset($ipn_response->shippingAddress))
 					{
@@ -919,8 +959,26 @@ catch(Exception $e)
 
 				break;
 			}
+                        
+                        
+                        
+                       case self::STATUS_ERROR: 
+                           // throw new Mage_Core_Exception(sprintf($helper->__('Denaid.')));
+                           
+                                //Mage::throwException('Invalid order id (' . $order->getId() . ')');
+                            
+                            $order->setState(
+					Mage_Sales_Model_Order::STATE_CANCELED,
+					Mage_Sales_Model_Order::STATE_CANCELED,
+					sprintf($helper->__(
+						'Ther order was denied by Payson.')))
+					->cancel();
+                            //throw new Mage_Core_Exception(sprintf($helper->__('Denaid.')));
+                            break;
+                        
+                        
+                        
 			case self::STATUS_INCOMPLETE:
-			case self::STATUS_ERROR:
 			case self::STATUS_EXPIRED:
 			case self::STATUS_REVERSALERROR:
 			default:
@@ -1011,6 +1069,7 @@ LIMIT
 				'token' => $payson_order->token
 			);
                 $url = vsprintf(self::API_CALL_PAYMENT_DETAILS, $this->GetFormatIfTest($payson_order->store_id));
+                print_r($url);exit;
 		$client = $this->GetHttpClient($url)
 			->setParameterPost($args);
 
@@ -1136,10 +1195,35 @@ LIMIT
             array_push($stack, self::DEBUG_MODE ? "Payment" : "1.0");
             
             array_push($stack, self::DEBUG_MODE ? "" : "Payment");
-            
+            //print_r($stack);exit;
             return $stack;
             
             
         }
+        
+        public function getIpnStatus($order_id) 
+        {    
+            $resource = Mage::getSingleton('core/resource');
+            $db = $resource->getConnection('core_write');
+            $order_table = $resource->getTableName('payson_order');
+            $query = 'SELECT ipn_status FROM `' . $order_table . '` WHERE order_id = ' . $order_id;
+            return $db->fetchRow($query);   
+        }
+        
+        public function paysonApiError($error) 
+        {
+            $error_code = '<html>
+                            <head>
+                            <meta http-equiv="Content-Type" content="text/html" charset="utf-8" />
+				<script type="text/javascript"> 
+                                    alert("'.$error.'");
+                                    window.location="'.('/index.php').'";
+				</script>
+                            </head>
+                           </html>';
+            echo $error_code;
+            exit;
+			
+	}
 }
 

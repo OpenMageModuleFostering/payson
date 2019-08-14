@@ -15,7 +15,7 @@ class Payson_Payson_Model_Order_Invoice_Total_Invoice extends
 			return $this;
 		}
 
-		if($order->hasInvoices() !== 0)
+		if($order->hasInvoices() == 0)
 		{
 			return $this;
 		}
