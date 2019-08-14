@@ -846,7 +846,7 @@ LIMIT
                 }
 
             case self::STATUS_ERROR:
-                
+
                 $order->cancel();
 
                 $order->addStatusHistoryComment($helper->__('The order was denied by Payson.'));
@@ -857,7 +857,7 @@ LIMIT
             case self::STATUS_EXPIRED:
             case self::STATUS_REVERSALERROR:
             default: {
-                        $order->cancel();
+                    $order->cancel();
                 }
         }
 

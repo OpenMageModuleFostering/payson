@@ -216,5 +216,6 @@ class Payson_Payson_Model_Config {
 
         return $configValue == 1;
     }
+
 }
 

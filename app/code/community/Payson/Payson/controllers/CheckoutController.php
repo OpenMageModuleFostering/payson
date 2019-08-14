@@ -102,6 +102,7 @@ class Payson_Payson_CheckoutController extends Mage_Core_Controller_Front_Action
             case 'ERROR': {
                     $errorMessage = Mage::helper('payson')->__('The payment was denied by Payson. Please, try a different payment method');
                     Mage::getSingleton('core/session')->addError($errorMessage);
+                    $this->CancelOrder($errorMessage);
                     if ($config->restoreCartOnError())
                         $this->restoreCart();
 
