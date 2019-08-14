@@ -18,9 +18,9 @@ class Payson_Payson_Helper_Api {
     const APPLICATION_ID = 'Magento';
     const MODULE_NAME = 'Payson_Magento_AllinOne';
     const MODULE_VERSION = '1.0';
-    const DEBUG_MODE_MAIL = 'karlbrundin@gmail.com';
-    const DEBUG_MODE_AGENT_ID = '87';
-    const DEBUG_MODE_MD5 = '1445c9a1-a2de-451d-baba-af26deccce0c';
+    const DEBUG_MODE_MAIL = 'testagent-1@payson.se';
+    const DEBUG_MODE_AGENT_ID = '4';
+    const DEBUG_MODE_MD5 = '2acab30d-fe50-426f-90d7-8c60a7eb31d4';
     const STATUS_CREATED = 'CREATED';
     const STATUS_PENDING = 'PENDING';
     const STATUS_PROCESSING = 'PROCESSING';
