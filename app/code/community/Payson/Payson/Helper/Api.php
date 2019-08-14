@@ -367,7 +367,7 @@ class Payson_Payson_Helper_Api {
                 ->setParameterPost($args);
 
         $response = Payson_Payson_Helper_Api_Response_Standard
-                ::FromHttpBody($client->request()->getBody());
+                ::FromHttpBody($client->request('POST')->getBody());
 
         $this->setResponse($response);
 
@@ -479,7 +479,7 @@ LIMIT
                 ->setRawData($http_body, $content_type);
 
         $response = Payson_Payson_Helper_Api_Response_Validate
-                ::FromHttpBody($client->request()->getBody());
+                ::FromHttpBody($client->request('POST')->getBody());
 
         $this->setResponse($response);
 
@@ -935,7 +935,7 @@ LIMIT
                 ->setParameterPost($args);
 
         $response = Payson_Payson_Helper_Api_Response_Standard
-                ::FromHttpBody($client->request()->getBody());
+                ::FromHttpBody($client->request('POST')->getBody());
 
         $this->setResponse($response);
 
@@ -1008,7 +1008,7 @@ LIMIT
                 ->setParameterPost($args);
 
         $response = Payson_Payson_Helper_Api_Response_Standard
-                ::FromHttpBody($client->request()->getBody());
+                ::FromHttpBody($client->request('POST')->getBody());
 
         $this->setResponse($response);
 
