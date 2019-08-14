@@ -42,6 +42,7 @@ class Payson_Payson_Model_Config {
      * 
      * @return	void
      */
+
     public function __construct() {
         $this->SetDefaultStoreId(Mage::app()->getStore()->getId());
     }
@@ -53,6 +54,7 @@ class Payson_Payson_Model_Config {
      * @return	object			$this
      */
     public function SetDefaultStoreId($store) {
+
         $this->default_store_id = $store;
 
         return $this;
@@ -64,6 +66,7 @@ class Payson_Payson_Model_Config {
      * @return	int
      */
     public function GetDefaultStoreId() {
+
         return $this->default_store_id;
     }
 
@@ -91,7 +94,6 @@ class Payson_Payson_Model_Config {
         }
 
         $name = $prefix . $name;
-        // Mage::getStoreConfigFlag
         $value = Mage::getStoreConfig($name, $store);
 
         return (isset($value) ? $value : $default);
@@ -152,7 +154,6 @@ class Payson_Payson_Model_Config {
         $tax_calc = Mage::getSingleton('tax/calculation');
         $customer = Mage::getModel('customer/customer')
                 ->load($order->getCustomerId());
-
         $tax_class = $this->GetConfig('invoice_fee_tax', $store->getId(), 0, 'payment/payson_invoice/');
 
         $tax_rate_req = $tax_calc->getRateRequest(
@@ -176,29 +177,25 @@ class Payson_Payson_Model_Config {
         return (bool) $this->GetConfig(self::PAYMENT_GUARANTEE, $store, false);
     }
 
-    /**
-     * Is standard payment enabled?
-     * 
-     * @param	int|null	$store	[optional]
-     * @return	bool
-     */
-    public function CanStandardPayment($store = null) {
-        return $this->GetConfig('active', $store, false, 'payment/payson_standard/');
-    }
-
-    /**
+     /**
      * Is invoice payment enabled?
      * 
      * @param	int|null	$store	[optional]
      * @return	bool
      */
-    public function CanInvoicePayment($store = null) {
-        /* if(!$this->CanStandardPayment($store))
-          {
-          return false;
-          } */
 
-        return $this->GetConfig('active', $store, false, 'payment/payson_invoice/');
+    public function CanInvoicePayment($store = null) {
+        
+        return $this->GetConfig('active_invoice', $store, false, 'payment/payson_invoice/');
+    }    
+    /**
+     * Is standard payment enabled?
+     * 
+     * @param	int|null	$store	[optional]
+     * @return	bool
+     */ 
+    public function CanStandardPayment($store = null) {
+        return $this->GetConfig('active', $store, false, 'payment/payson_standard/');
     }
 
     public function restoreCartOnCancel($store = null) {

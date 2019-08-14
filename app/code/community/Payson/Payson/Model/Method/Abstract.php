@@ -90,8 +90,12 @@ abstract class Payson_Payson_Model_Method_Abstract extends Mage_Payment_Model_Me
         $helper = Mage::helper('payson');
         $order_id = $order->getData('increment_id');
         $api = Mage::helper('payson/api');
-
-        $api->PaymentUpdate($order_id, $method == "payson_invoice" ?
+        if ($method == "payson_standard") {
+            $paysonPaymethod = $method;
+        }if ($method == "payson_invoice") {
+            $paysonPaymethod = $method;
+        }
+        $api->PaymentUpdate($order_id, $paysonPaymethod ?
                         Payson_Payson_Helper_Api::UPDATE_ACTION_CREDITORDER :
                         Payson_Payson_Helper_Api::UPDATE_ACTION_REFUNDORDER);
 
@@ -122,6 +126,8 @@ abstract class Payson_Payson_Model_Method_Abstract extends Mage_Payment_Model_Me
         $api->PaymentDetails($order_id);
         $details = $api->GetResponse();
 
+
+
         if (($details->type === Payson_Payson_Helper_Api::PAYMENT_METHOD_INVOICE) ||
                 ($details->invoiceStatus === Payson_Payson_Helper_Api::INVOICE_STATUS_ORDERCREATED) ||
                 ($details->type !== Payson_Payson_Helper_Api::PAYMENT_METHOD_INVOICE && $details->status === Payson_Payson_Helper_Api::STATUS_CREATED) ||
@@ -133,32 +139,10 @@ abstract class Payson_Payson_Model_Method_Abstract extends Mage_Payment_Model_Me
 
             $payment->setTransactionId('auth')
                     ->setIsTransactionClosed(1);
-            //->setShouldCloseParentTransaction(1);
         } else {
             Mage::throwException($helper->__('Payson is not ready to cancel the order. Please try again later.'));
         }
-
         return $this;
     }
 
-    /**
-     * Is run when payment method is selected
-     *
-     * @return	void
-     */
-    /* public function validate()
-      {
-      $session = Mage::getSingleton('checkout/session');
-
-      if(isset($_POST['payment']['method']))
-      {
-      $session->setData('payson_payment_method',
-      $_POST['payment']['method']);
-      }
-      else
-      {
-      $session->unsetData('payson_payment_method');
-      }
-      } */
 }
-

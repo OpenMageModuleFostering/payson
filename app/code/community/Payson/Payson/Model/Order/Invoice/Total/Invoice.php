@@ -2,18 +2,18 @@
 
 class Payson_Payson_Model_Order_Invoice_Total_Invoice extends
 Mage_Sales_Model_Order_Invoice_Total_Abstract {
-
-    protected $_code = 'payson_invoice';
-
+   
+    protected $_code = 'payson_standard';
     public function collect(Mage_Sales_Model_Order_Invoice $invoice) {
         $order = $invoice->getOrder();
-
-        $method = $order->getPayment()->getMethodInstance()->getCode(); /* Should be getMethod() */
-
-        if ($method !== 'payson_invoice') {
+        $this->_config = Mage::getModel('payson/config');
+        if (!$this->_config->CanInvoicePayment()) {
             return $this;
         }
-
+        $method = $order->getPayment()->getMethodInstance()->getCode();
+        if ($method !== 'payson_standard') {
+            return $this;
+        }
         if ($order->hasInvoices() == 0) {
             return $this;
         }
@@ -40,4 +40,3 @@ Mage_Sales_Model_Order_Invoice_Total_Abstract {
     }
 
 }
-

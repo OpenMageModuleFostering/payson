@@ -47,7 +47,6 @@ class Payson_Payson_Model_Standard extends Mage_Payment_Model_Method_Abstract {
         $state_object->setState(Mage_Sales_Model_Order::STATE_PENDING_PAYMENT);
         $state_object->setStatus(Mage_Sales_Model_Order::STATE_PENDING_PAYMENT);
         $state_object->setIsNotified(false);
-
         return $this;
     }
 
@@ -93,26 +92,15 @@ class Payson_Payson_Model_Standard extends Mage_Payment_Model_Method_Abstract {
     }
 
     /**
-     * Is run when payment method is selected
-     *
-     * @return	void
-     */
-    public function validate() {
-        $session = Mage::getSingleton('checkout/session');
-
-        if (isset($_POST['payment']['payson_payment_method'])) {
-            $session->setData('payson_payment_method', $_POST['payment']['payson_payment_method']);
-        } else {
-            $session->unsetData('payson_payment_method');
-        }
-    }
-
-    /**
      * @inheritDoc
      */
     public function getTitle() {
-        return Mage::Helper('payson')->__('Checkout with Payson');
+
+        if ($this->_config->CanStandardPayment()) {
+            return sprintf(Mage::helper('payson')->__('Checkout with Payson. If invoice is choosen as payment method an %s invoice fee will be added.'));
+        } elseif ($this->_config->CanStandardPayment()) {
+            return Mage::helper('payson')->__('Checkout with Payson');
+        }
     }
 
 }
-

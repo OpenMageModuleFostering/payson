@@ -2,7 +2,7 @@
 <config>
     <modules>
         <Payson_Payson>
-            <version>1.2.6</version>
+            <version>1.0.0</version>
         </Payson_Payson>
     </modules>
     <admin>
@@ -160,7 +160,6 @@
                 <payment_action>authorize</payment_action>
                 <order_status>pending</order_status>
                 <invoice_fee_sek>0</invoice_fee_sek>
-                <invoice_fee_eur>0</invoice_fee_eur>
             </payson_invoice>
         </payment>
     </default>

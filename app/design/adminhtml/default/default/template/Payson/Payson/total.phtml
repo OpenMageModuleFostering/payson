@@ -1,5 +1,11 @@
 <tr>
-    <td class="label"><?php echo($this->__('Invoice Fee')); ?></td>
-    <td><?php echo($this->displayPriceAttribute('payson_invoice_fee')); ?></td>
+    <td class="label"><?php echo($this->__('Invoice fee')); ?></td>
+    <td><?php
+    $this->_config = Mage::getModel('payson/config');
+    if($this->_config->CanInvoicePayment()){
+        echo($this->displayPriceAttribute('payson_invoice_fee')); 
+
+    }
+    ?></td>
 </tr>
 

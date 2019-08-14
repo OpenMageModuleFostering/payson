@@ -1,9 +1,13 @@
 <?php
 
+include 'FundingConstraint.php';
+
 class Payson_Payson_Helper_Api {
     /*
      * Constants
      */
+
+    var $invoiceAmountMinLimit = 30;
 
     const DEBUG_MODE = false;
     const API_CALL_PAY = '%s://%sapi.payson.%s/%s/Pay/';
@@ -12,11 +16,11 @@ class Payson_Payson_Helper_Api {
     const API_CALL_PAYMENT_UPDATE = '%s://%sapi.payson.%s/%s/%sUpdate/';
     const PAY_FORWARD_URL = '%s://%s%s.payson.%s/paySecure/';
     const APPLICATION_ID = 'Magento';
-    const MODULE_NAME = 'payson_magento';
-    const MODULE_VERSION = '1.2.6';
-    const DEBUG_MODE_MAIL = 'testagent-1@payson.se';
-    const DEBUG_MODE_AGENT_ID = '1';
-    const DEBUG_MODE_MD5 = 'fddb19ac-7470-42b6-a91d-072cb1495f0a';
+    const MODULE_NAME = 'Payson_Magento_AllinOne';
+    const MODULE_VERSION = '1.0';
+    const DEBUG_MODE_MAIL = 'karlbrundin@gmail.com';
+    const DEBUG_MODE_AGENT_ID = '87';
+    const DEBUG_MODE_MD5 = '1445c9a1-a2de-451d-baba-af26deccce0c';
     const STATUS_CREATED = 'CREATED';
     const STATUS_PENDING = 'PENDING';
     const STATUS_PROCESSING = 'PROCESSING';
@@ -29,6 +33,7 @@ class Payson_Payson_Helper_Api {
     const PAYMENT_METHOD_BANK = 'BANK';
     const PAYMENT_METHOD_CREDITCARD = 'CREDITCARD';
     const PAYMENT_METHOD_INVOICE = 'INVOICE';
+    const PAYMENT_METHOD_SMS = 'SMS';
     const GUARANTEE_STATUS_WAITINGFORSEND = 'WAITINGFORSEND';
     const GUARANTEE_STATUS_WAITINGFORACCEPTANCE = 'WAITINGFORACCEPTANCE';
     const GUARANTEE_STATUS_WAITINGFORRETURN = 'WAITINGFORRETURN';
@@ -51,6 +56,8 @@ class Payson_Payson_Helper_Api {
     const GUARANTEE_OPTIONAL = 'OPTIONAL';
     const GUARANTEE_NO = 'NO';
 
+    //const PMETHOD ='';
+
     /*
      * Private properties
      */
@@ -61,6 +68,7 @@ class Payson_Payson_Helper_Api {
     private $_config;
     /* @var $_helper Payson_Payson_Helper_Data */
     private $_helper;
+    private $_invoice;
     private $_products = array();
 
     /*
@@ -70,6 +78,7 @@ class Payson_Payson_Helper_Api {
     public function __construct() {
         $this->_config = Mage::getModel('payson/config');
         $this->_helper = Mage::helper('payson');
+        $this->_invoice = Mage::getModel('payson/method/invoice');
     }
 
     private function getHttpClient($url) {
@@ -244,7 +253,7 @@ class Payson_Payson_Helper_Api {
      * http://api.payson.se/#title8
      *
      * @param	object	$order
-     * @return	object					$this
+     * @return	object					
      */
     public function showReceiptPage() {
         $Config = (int) $this->_config->get('show_receipt_page');
@@ -293,8 +302,6 @@ class Payson_Payson_Helper_Api {
             'localeCode' =>
             $locale_code,
             'currencyCode' =>
-            //$order->getOrderCurrency()->getCode(),
-            //$order->getBaseCurrencyCode(),
             strtoupper(substr($order->getOrderCurrency()->getCode(), 0, 3)),
             'memo' =>
             sprintf($this->_helper->__('Order from %s'), $store->getName()),
@@ -313,30 +320,62 @@ class Payson_Payson_Helper_Api {
         if (!$this->_config->CanPaymentGuarantee()) {
             $args['guaranteeOffered'] = self::GUARANTEE_NO;
         }
-
-        if (($payment_method === 'payson_invoice')) {
-            if (!$this->_config->CanInvoicePayment()) {
-                Mage::throwException('Invoice payment is disabled');
-            }
-
-            $args['fundingList.fundingConstraint(0).constraint'] = self::PAYMENT_METHOD_INVOICE;
-        } else {
-            switch ($this->_config->get('paysondirect_method')) {
-                case 1:
-                    $args['fundingList.fundingConstraint(0).constraint'] = 'CREDITCARD';
-                    break;
-                case 2:
-                    $args['fundingList.fundingConstraint(0).constraint'] = 'BANK';
-                    break;
-                default:
-                    break;
+        $isCurrency = strtoupper(Mage::app()->getStore()->getCurrentCurrencyCode());
+        $paymentMethod = $this->_config->get('payson_All_in_one');
+        //Get Payson paymentmethod
+        //Direct Payment
+        if ($this->_config->CanStandardPayment() && $isCurrency == 'SEK') {
+            $payment = $this->getConstrains($paymentMethod);
+        }
+        //InvoicePayment with check if invoice amount is above minimum
+        if ($this->_config->CanInvoicePayment() && ($order->getSubtotal() >= $this->invoiceAmountMinLimit) && ($isCurrency == 'SEK')) {
+            $payment = $this->getConstrains($paymentMethod);
+        }
+        //Remove invoice if invoice amount is below minimum amount
+        if ($this->_config->CanInvoicePayment() && ($order->getSubtotal() < $this->invoiceAmountMinLimit) && ($isCurrency == 'SEK')) {
+            $disableInvoice = true;
+            $payment = $this->getConstrains($paymentMethod);
+            if (in_array(3, $payment)) {
+                $newArray = array();
+                foreach ($payment as $pkey) {
+                    if ($pkey != 3)
+                        $newArray[] = $pkey;
+                }
+                $payment = $newArray;
             }
         }
-
-
-        $total = 0;
+        //If other currency than SEK remove payment option Invocie and SMS
+        if (($this->_config->CanInvoicePayment() || $this->_config->CanStandardPayment()) && ($isCurrency != 'SEK')) {
+            $payment = $this->getConstrains($paymentMethod);
+            //Remove Invoice from array
+            if (in_array(3, $payment)) {
+                $disableInvoice = true;
+                $newArray = array();
+                foreach ($payment as $pkey) {
+                    if ($pkey != 3) {
+                        $newArray[] = $pkey;
+                    }
+                }
+                $payment = $newArray;
+            }
+            //Remove SMS from array
+            if (in_array(4, $payment)) {
+                $newArray = array();
+                foreach ($payment as $pkey) {
+                    if ($pkey != 4) {
+                        $newArray[] = $pkey;
+                    }
+                }
+                $payment = $newArray;
+            }
+        }
+        define("PMETHOD", serialize($payment));
+        $output = array();
+        FundingConstraint::addConstraintsToOutput($payment, $output);
+        $args = array_merge($args, $output);
 
         // Calculate price of each item in the order
+        $total = 0;
         foreach ($order->getAllVisibleItems() as $item) {
             $this->prepareOrderItemData($item, $total);
         }
@@ -344,32 +383,37 @@ class Payson_Payson_Helper_Api {
         foreach ($order->getAllVisibleItems() as $item) {
             $this->setOrderDiscountItem($item, $total);
         }
+
         if ($this->order_discount_item > 0) {
             $this->prepareProductData('discount', 'discount', 1, -$this->order_discount_item, 0.0);
         }
         // Calculate price for shipping
         $this->prepareOrderShippingData($order, $customer, $store, $total);
-
-        if ($order->getPaysonInvoiceFee() > 0) {
-            $fee = $order->getPaysonInvoiceFee();
-            $args['invoiceFee'] = round((float) $fee, 3);
-            $total += $fee;
-        }
-
         $args = $this->generateProductDataForPayson($args);
 
+        if ($this->_config->CanInvoicePayment() && ($order->getSubtotal() >= $this->invoiceAmountMinLimit) && !$disableInvoice) {
+
+            if ($order->getPaysonInvoiceFee() > 0) {
+
+                $fee = $order->getPaysonInvoiceFee();
+
+                $args['invoiceFee'] = round((float) $fee, 3);
+                $total += $fee;
+            }
+        }
         $roundedTotal = round($total, 2);
 
         $args['receiverList.receiver(0).amount'] = $roundedTotal;
 
         $url = vsprintf(self::API_CALL_PAY, $this->getFormatIfTest($order->getStoreId()));
+
         $client = $this->getHttpClient($url)
                 ->setParameterPost($args);
 
         $response = Payson_Payson_Helper_Api_Response_Standard
                 ::FromHttpBody($client->request('POST')->getBody());
-
         $this->setResponse($response);
+
 
         $resource = Mage::getSingleton('core/resource');
         $db = $resource->getConnection('core_write');
@@ -408,6 +452,41 @@ class Payson_Payson_Helper_Api {
         return $this;
     }
 
+    public function PaymentMethod() {
+        
+    }
+
+    private function getConstrains($paymentMethod) {
+
+        $constraints = array();
+        $opts = array(
+            -1 => array(''),
+            0 => array('sms'),
+            1 => array('bank'),
+            2 => array('card'),
+            3 => array('bank', 'sms'),
+            4 => array('card', 'sms'),
+            5 => array('card', 'bank'),
+            6 => array('card', 'bank', 'sms'),
+            7 => array(''),
+            8 => array('invoice'),
+            9 => array('invoice', 'sms'),
+            10 => array('invoice', 'bank'),
+            11 => array('invoice', 'card'),
+            12 => array('invoice', 'bank', 'sms'),
+            13 => array('invoice', 'card', 'sms'),
+            14 => array('invoice', 'card', 'bank'),
+            15 => array('invoice', 'card', 'bank', 'sms'),
+        );
+        $optsStrings = array('' => FundingConstraint::NONE, 'bank' => FundingConstraint::BANK, 'card' => FundingConstraint::CREDITCARD, 'invoice' => FundingConstraint::INVOICE, 'sms' => FundingConstraint::SMS);
+        if ($opts[$paymentMethod]) {
+            foreach ($opts[$paymentMethod] as $methodStringName) {
+                $constraints[] = $optsStrings[$methodStringName];
+            }
+        }
+        return $constraints;
+    }
+
     /**
      * Implements the IPN procedure
      *
@@ -417,8 +496,6 @@ class Payson_Payson_Helper_Api {
      * @param	string	$content_type
      * @return	object					$this
      */
-
-
     public function Validate($http_body, $content_type) {
 
         // Parse request done by Payson to our IPN controller
@@ -432,6 +509,7 @@ class Payson_Payson_Helper_Api {
         $order_table = $resource->getTableName('payson_order');
         $order_log_table = $resource->getTableName('payson_order_log');
 
+
         /* Save data sent by Payson, log entry as invalid by default, this
           value will be changed later in this method if successful. No payson
           order id is set, because we dont have one yet */
@@ -444,13 +522,6 @@ class Payson_Payson_Helper_Api {
         ));
 
         $order_log_id = $db->lastInsertId();
-
-        /* $ipn_response will never contain responseEnvelope.ack, as I first
-          thought it would */
-        /* if(!$ipn_response->IsValid())
-          {
-          Mage::throwException('Invalid request');
-          } */
 
         /* Save fetch mode so that we can reset it and not mess up Magento
           functionality */
@@ -532,10 +603,6 @@ LIMIT
 
         /* Verify payment amount. floor() since there might be a precision
           difference */
-        if (floor((float) $receivers[0]['amount']) !==
-                floor((float) $order->getTotalDue())) {
-            Mage::throwException('Invalid amount');
-        }
 
         switch ($ipn_response->status) {
             case self::STATUS_COMPLETED: {
@@ -572,6 +639,7 @@ LIMIT
                         $order->save();
 
 
+
                         if (isset($ipn_response->shippingAddress)) {
                             $address_info = $ipn_response->shippingAddress
                                     ->ToArray();
@@ -597,7 +665,7 @@ LIMIT
                             }
 
                             if (isset($address_info['country'])) {
-                                // :(
+
                                 $foo = array
                                     (
                                     'afghanistan' => 'AF',
@@ -855,10 +923,10 @@ LIMIT
                                                     'Payson updated the shipping address')));
                         }
                     } else {
-                        $order->addStatusHistoryComment(sprintf(
-                                        $this->_helper->__('Payson pinged the order with status %s'), $ipn_response->status));
                         $order['payson_invoice_fee']= 0;
                         $order['base_payson_invoice_fee']=0;
+                        $order->addStatusHistoryComment(sprintf(
+                                        $this->_helper->__('Payson pinged the order with status %s'), $ipn_response->status));
                     }
 
                     break;
@@ -868,12 +936,16 @@ LIMIT
 
                 $order->cancel();
 
+
                 $order->addStatusHistoryComment($this->_helper->__('The order was denied by Payson.'));
 
                 break;
 
             case self::STATUS_INCOMPLETE:
             case self::STATUS_EXPIRED:
+                $order->cancel();
+
+                $order->addStatusHistoryComment($this->_helper->__('The order was not completed within allocated time'));
             case self::STATUS_REVERSALERROR:
             default: {
                     $order->cancel();
@@ -881,8 +953,6 @@ LIMIT
         }
 
         $order->save();
-
-        // Update the database tables
         $db->update($order_log_table, array
             (
             'valid' => 1
@@ -898,6 +968,7 @@ LIMIT
             (
             'id = ?' => $payson_order->id
         ));
+
 
         return $this;
     }
@@ -916,7 +987,6 @@ LIMIT
 
         $order_table = $resource->getTableName('payson_order');
         $order_log_table = $resource->getTableName('payson_order_log');
-
         /* Save fetch mode so that we can reset it and not mess up Magento
           functionality */
         $old_fetch_mode = $db->getFetchMode();
@@ -1010,8 +1080,12 @@ AND
 LIMIT
 	0,1', $order_id);
 
-        if ($payson_order === false) {
-            Mage::throwException('Invalid order id (' . $order_id . ')');
+
+
+        try {
+            $payson_order !== false;
+        } catch (Exception $e) {
+            Mage::throwException('Invalid order id (' . $order_id . ')' . $e->getMessage());
         }
 
         $db->setFetchMode($old_fetch_mode);
@@ -1067,7 +1141,7 @@ LIMIT
         array_push($stack, self::DEBUG_MODE ? "Payment" : "1.0");
 
         array_push($stack, self::DEBUG_MODE ? "" : "Payment");
-        //print_r($stack);exit;
+        //print_r($stack);
         return $stack;
     }
 

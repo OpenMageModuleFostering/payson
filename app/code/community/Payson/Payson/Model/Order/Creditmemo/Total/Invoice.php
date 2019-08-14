@@ -4,20 +4,17 @@ class Payson_Payson_Model_Order_Creditmemo_Total_Invoice extends
 Mage_Sales_Model_Order_Creditmemo_Total_Abstract {
 
     protected $_code = 'payson_invoice';
-
     public function collect(Mage_Sales_Model_Order_Creditmemo $invoice) {
         $order = $invoice->getOrder();
+        $this->_config = Mage::getModel('payson/config');
+        $method = $order->getPayment()->getMethod();
 
-        $method = $order->getPayment()->getMethodInstance()->getCode(); /* Should be getMethod() */
-
-        if ($method !== 'payson_invoice') {
+        if(!$this->_config->CanInvoicePayment()){
             return $this;
         }
-
-        /* if($order->hasInvoices() !== 0)
-          {
-          return $this;
-          } */
+        if ($method !== 'payson_standard') {
+            return $this;
+        }
 
         $base_fee = $order->getBasePaysonInvoiceFee();
         $fee = $order->getPaysonInvoiceFee();

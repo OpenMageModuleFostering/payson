@@ -107,16 +107,7 @@
                             <show_in_default>1</show_in_default>
                             <show_in_website>1</show_in_website>
                             <show_in_store>1</show_in_store>
-                        </invoice_fee_sek>
-                        <invoice_fee_eur translate="label,comment">
-                            <label>Invoice fee (EUR)</label>
-                            <comment>Invoice fee for EUR excluding tax.</comment>
-                            <frontend_type>text</frontend_type>
-                            <sort_order>60</sort_order>
-                            <show_in_default>1</show_in_default>
-                            <show_in_website>1</show_in_website>
-                            <show_in_store>1</show_in_store>
-                        </invoice_fee_eur>-->
+                        </invoice_fee_sek>-->
                         <restore_on_cancel translate="label,comment">
                             <label>Restore cart on cancel</label>
                             <comment>Restore cart when customer cancel the payment</comment>
@@ -150,7 +141,7 @@
                     </fields>
                 </payson_standard>
                 <payson_invoice translate="label" module="payson">
-                    <label>Payson invoice setup</label>
+                    <label>Payson_invoice_setup</label>
                     <sort_order>-99</sort_order>
                     <show_in_default>1</show_in_default>
                     <show_in_website>1</show_in_website>
@@ -185,7 +176,7 @@
                             <show_in_default>1</show_in_default>
                             <show_in_website>1</show_in_website>
                             <show_in_store>1</show_in_store>
-                        </invoice_fee_sek>                                              
+                        </invoice_fee_sek>                                                    
                     </fields>
                 </payson_invoice>                
             </groups>
