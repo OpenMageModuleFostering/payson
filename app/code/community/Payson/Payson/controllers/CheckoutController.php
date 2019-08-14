@@ -61,8 +61,9 @@ class Payson_Payson_CheckoutController extends Mage_Core_Controller_Front_Action
         if (!is_null($order = $this->getOrder())) {
             $order->cancel();
 
-            if ($message != '')
+            if ($message != '') {
                 $order->addStatusHistoryComment($message);
+            }
         }
 
         $order->save();
@@ -91,7 +92,7 @@ class Payson_Payson_CheckoutController extends Mage_Core_Controller_Front_Action
             $this->cancelOrder($e->getMessage());
 
             if ($this->_config->restoreCartOnError()) {
-                $this->_config->restoreCart();
+                $this->restoreCart();
             }
 
             Mage::logException($e);
@@ -102,10 +103,12 @@ class Payson_Payson_CheckoutController extends Mage_Core_Controller_Front_Action
     }
 
     public function returnAction() {
+        $api = Mage::helper('payson/api');
         $order = $this->getOrder();
-
         $paymentDetailsResponse = Mage::helper('payson/api')->PaymentDetails(Mage::getSingleton('checkout/session')->getLastRealOrderId())->getResponse();
         $paymentStatus = $paymentDetailsResponse->status;
+        $InvoiceStatus = $paymentDetailsResponse->invoiceStatus;
+        isset($InvoiceStatus) ? $InvoiceStatus : 'NONE';
         $paymentDetails = $paymentDetailsResponse->receiverList->receiver->ToArray();
         $new_paymentDetails = array();
         foreach ($paymentDetails as $item) {
@@ -113,7 +116,8 @@ class Payson_Payson_CheckoutController extends Mage_Core_Controller_Front_Action
                 $new_paymentDetails[$key] = $value;
             }
         }
-
+        
+        $sendEmail = $api->confirmationEmail($order->getEntityId()); 
         $investigatefee = $order['base_payson_invoice_fee'];
         $currentAmount = $new_paymentDetails['amount'];
         $newAmount = $currentAmount += $investigatefee;
@@ -125,8 +129,12 @@ class Payson_Payson_CheckoutController extends Mage_Core_Controller_Front_Action
 
 
                     if ($paymentDetailsResponse->type !== 'INVOICE' && $paymentDetailsResponse->status === 'COMPLETED') {
+                        if ($sendEmail['status'] == 'pending_payment') {
+                            $order->sendNewOrderEmail()->save();
+                        } 
+                        
                         $order->setState(Mage_Sales_Model_Order::STATE_PROCESSING, true);
-                        $order->sendNewOrderEmail()->save();
+                        Mage::helper('payson')->__('Either an bank, card or SMS payment was choosen as payment method');
                         $order['payson_invoice_fee'] = 0;
                         $order['base_payson_invoice_fee'] = 0;
 
@@ -151,14 +159,25 @@ class Payson_Payson_CheckoutController extends Mage_Core_Controller_Front_Action
                     }
                     if ($paymentDetailsResponse->type !== 'INVOICE' && $paymentDetailsResponse->status === 'PENDING') {
                         Mage::getSingleton('core/session')->addError(sprintf(Mage::helper('payson')->__('Something went wrong with the payment. Please, try a different payment method')));
+                        $order->setState(Mage_Sales_Model_Order::STATE_PENDING_PAYMENT, true);
                         $order['payson_invoice_fee'] = 0;
                         $order['base_payson_invoice_fee'] = 0;
                         $this->_redirect('checkout/onepage/failure');
                         break;
                     }
+                    if ($paymentDetailsResponse->type === 'INVOICE' && $InvoiceStatus === 'PENDING') {
+                        Mage::getSingleton('core/session')->addError(sprintf(Mage::helper('payson')->__('Your payment is being processed by Payson')));
+                        $order->setState(Mage_Sales_Model_Order::STATE_PENDING_PAYMENT, true);
+                        $this->_redirect('checkout/onepage/failure');
+                        break;
+                    }
                     //Update the order with the true amount
                     if ($paymentDetailsResponse->type === 'INVOICE' && $paymentDetailsResponse->type !== 'TRANSFER') {
+                        if ($sendEmail['status'] == 'pending_payment') {
+                            $order->sendNewOrderEmail()->save();
+                        } 
                         $order->setState(Mage_Sales_Model_Order::STATE_PROCESSING, true);
+                        Mage::helper('payson')->__('Invoice payment was choosen as payment method');
                         $order->sendNewOrderEmail()->save();
                         $order->setBaseGrandTotal($newAmount);
                         $order->setGrandTotal($newAmount);
@@ -178,7 +197,7 @@ class Payson_Payson_CheckoutController extends Mage_Core_Controller_Front_Action
                 }
             case 'ABORTED':
             case 'CANCELED': {
-                    $order->setState(Mage_Sales_Model_Order::STATE_CANCELED, true);                
+                    $order->setState(Mage_Sales_Model_Order::STATE_CANCELED, true);
                     $cancelMessage = Mage::helper('payson')->__('Order was canceled at Payson');
                     $this->cancelOrder($cancelMessage);
                     if ($this->_config->restoreCartOnCancel()) {

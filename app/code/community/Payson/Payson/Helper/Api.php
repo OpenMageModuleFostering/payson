@@ -17,7 +17,7 @@ class Payson_Payson_Helper_Api {
     const PAY_FORWARD_URL = '%s://%s%s.payson.%s/paySecure/';
     const APPLICATION_ID = 'Magento';
     const MODULE_NAME = 'Payson_AllinOne';
-    const MODULE_VERSION = '1.0.2';
+    const MODULE_VERSION = '1.8.3.3';
     const DEBUG_MODE_MAIL = 'testagent-1@payson.se';
     const DEBUG_MODE_AGENT_ID = '4';
     const DEBUG_MODE_MD5 = '2acab30d-fe50-426f-90d7-8c60a7eb31d4';
@@ -29,7 +29,7 @@ class Payson_Payson_Helper_Api {
     const STATUS_INCOMPLETE = 'INCOMPLETE';
     const STATUS_ERROR = 'ERROR';
     const STATUS_DENIED = 'DENIED';
-    const STATUS_ABORTED ='ABORTED';
+    const STATUS_ABORTED = 'ABORTED';
     const STATUS_CANCELED = 'CANCELED';
     const STATUS_EXPIRED = 'EXPIRED';
     const STATUS_REVERSALERROR = 'REVERSALERROR';
@@ -64,14 +64,16 @@ class Payson_Payson_Helper_Api {
     /*
      * Private properties
      */
-
+    private $discountType;
+    private $numberofItems;
+    private $discountVat = 0.0;
+    private $_order = null;
     private $response;
     private $order_discount_item = 0.0;
     /* @var $_config Payson_Payson_Model_Config */
     private $_config;
     /* @var $_helper Payson_Payson_Helper_Data */
     private $_helper;
-    private $_invoice;
     private $_products = array();
 
     /*
@@ -81,6 +83,7 @@ class Payson_Payson_Helper_Api {
     public function __construct() {
         $this->_config = Mage::getModel('payson/config');
         $this->_helper = Mage::helper('payson');
+        $this->_invoice = Mage::getModel('payson/method/invoice');
     }
 
     private function getHttpClient($url) {
@@ -107,7 +110,69 @@ class Payson_Payson_Helper_Api {
         return $this;
     }
 
-    private function setOrderDiscountItem($item, &$total) {
+    //Private functions for Swedish discount and vat calculations
+    private function setAverageVat($vat) {
+        $this->discountVat = $vat;
+    }
+
+    private function getAverageVat() {
+        return $this->discountVat;
+    }
+
+    private function setDiscountType($type) {
+        $this->discountType = $type;
+    }
+
+    private function getDiscountType() {
+        return $this->discountType;
+    }
+
+    private function setNumberOfItems($items) {
+        $this->numberofItems = $items;
+    }
+
+    private function getNumberOfItems() {
+        return $this->numberofItems;
+    }
+
+    private function getStoreCountry() {
+        $countryCode = Mage::getStoreConfig('general/country/default');
+        $country = Mage::getModel('directory/country')->loadByCode($countryCode);
+        return $country->country_id;
+    }
+
+    private function setSwedishDiscountItem($item, &$total, $orderitems, $order) {
+
+        /*
+         * Discount types $item->getAppliedRuleIds():
+         *  Fixed discount amount for the entire cart
+         *  Precentage discount for the entire cart
+         *  Fixed discount amount for each article in cart 
+         */
+        $rule = Mage::getModel('salesrule/rule')->load($item->getAppliedRuleIds());
+        $total -= $item->getDiscountAmount();
+        $numberOfItem = floor($order->getData('total_qty_ordered'));
+        $items = 0;
+        
+        $discountAmount = $item->getDiscountAmount();
+        for ($i = 0; $i <= $numberOfItem; $i++) {
+            $orderVat = $orderitems['orderItemList.orderItem(' . $i . ').taxPercentage'];
+            $moms += $orderVat;
+            //counting number of tax rows that is not zero
+            if ($orderVat != 0) {
+                $items++;
+            }
+        }
+        $this->setNumberOfItems($numberOfItem);
+        $this->setDiscountType($rule->simple_action);
+        $totalMoms = $moms / $items;
+
+        $this->setAverageVat($totalMoms);
+
+        $this->order_discount_item += $discountAmount;
+    }
+
+    private function setInternationalDiscountItem($item, &$total) {
         $total -= $item->getDiscountAmount();
         $this->order_discount_item += $item->getDiscountAmount();
     }
@@ -119,20 +184,40 @@ class Payson_Payson_Helper_Api {
      * @param	int		$total
      * @return	array
      */
-    private function prepareOrderItemData($item, &$total) {
+   private function getProductOptions($id) {
+        $product = new Mage_Catalog_Model_Product();		
+	$product->load($id);        
+        $product->getTypeInstance(true)->setStoreFilter(Mage::app()->getStore(), $product);
+        return $product;
+        
+    }
+    private function prepareOrderItemData($item, &$total, $order) {
         /* @var $product Mage_Catalog_Model_Product */
         $product = Mage::getModel('catalog/product')
                 ->load($item->getProductId());
 
         $attributesString = "";
+        $quoteItems = Mage::getModel('sales/quote_item')->getCollection();
+        $quoteItems->addFieldToFilter('quote_id', $order->quote_id);
+        $quoteItems->addFieldToFilter('product_type', 'bundle');
+
 
         if (($children = $item->getChildrenItems()) != null && !$product->isConfigurable()) {
             $args = array();
+            $product = $this->getProductOptions($item->getProductId());
+            
+            if ($item->getProductType() != 'bundle'||$product->getPriceType() == Mage_Bundle_Model_Product_Price::PRICE_TYPE_DYNAMIC) {
             $this->prepareProductData($item->getName(), $item->getSku(), $item->getQtyOrdered(), 0, 0);
+            } 
             foreach ($children as $child) {
-                $this->prepareOrderItemData($child, $total);
+                $this->prepareOrderItemData($child, $total, $order);
             }
+            //checks if there are bundles items is present and if it is dynamic
+            if (($quoteItems->getSize() < 1)) {
             return;
+            } elseif ($product->getPriceType() == Mage_Bundle_Model_Product_Price::PRICE_TYPE_DYNAMIC && $item->getProductType() == 'bundle') {
+                return;
+        }
         }
 
         $productOptions = $item->getProductOptions();
@@ -149,7 +234,6 @@ class Payson_Payson_Helper_Api {
 
         $name = $item->getName() . ($attributesString != "" ? " - " . $attributesString : "");
         $sku = $item->getSku();
-
         $tax_mod = (float) $item->getTaxPercent();
         $tax_mod /= 100;
         $tax_mod = round($tax_mod, 5);
@@ -185,6 +269,7 @@ class Payson_Payson_Helper_Api {
             );
             $args += $productData;
         }
+
         return $args;
     }
 
@@ -209,7 +294,6 @@ class Payson_Payson_Helper_Api {
 
         $tax_rate_req = $tax_calc->getRateRequest(
                 $order->getShippingAddress(), $order->getBillingAddress(), $customer->getTaxClassId(), $store);
-
 
         if (($price = (float) $order->getShippingInclTax()) > 0) {
             $tax_mod = $tax_calc->getRate($tax_rate_req->setProductClassId(
@@ -266,7 +350,17 @@ class Payson_Payson_Helper_Api {
         return $reciept2;
     }
 
+    public function vatDiscount() {
+        $inputValue = (int) $this->_config->Get('vat_discount');
+        $enableVatDiscount = 'false';
+        if ($inputValue === 1) {
+            $enableVatDiscount = 'true';
+        }
+        return $enableVatDiscount;
+    }
+
     public function Pay(Mage_Sales_Model_Order $order) {
+
         $payment_method = $order->getPayment()->getMethod();
 
         /* @var $store Mage_Core_Model_Store */
@@ -275,9 +369,10 @@ class Payson_Payson_Helper_Api {
                 ->load($order->getCustomerId());
         $billing_address = $order->getBillingAddress();
 
-        // Need a two character locale code
+        // Need a two character locale code. This collects the store chosen language
         $locale_code = Mage::getSingleton('core/locale')->getLocaleCode();
         $locale_code = strtoupper(substr($locale_code, 0, 2));
+
 
         if (!in_array($locale_code, array('SV', 'FI', 'EN'))) {
             switch ($locale_code) {
@@ -371,24 +466,54 @@ class Payson_Payson_Helper_Api {
                 $payment = $newArray;
             }
         }
-        define("PMETHOD", serialize($payment));
+
+        $result = (!isset($payment)) ? $payment = '' : $payment;
+
+        define("PMETHOD", serialize($result));
         $output = array();
-        FundingConstraint::addConstraintsToOutput($payment, $output);
+        FundingConstraint::addConstraintsToOutput($result, $output);
         $args = array_merge($args, $output);
 
         // Calculate price of each item in the order
         $total = 0;
         foreach ($order->getAllVisibleItems() as $item) {
-            $this->prepareOrderItemData($item, $total);
+            $this->prepareOrderItemData($item, $total, $order);
         }
 
-        foreach ($order->getAllVisibleItems() as $item) {
-            $this->setOrderDiscountItem($item, $total);
-        }
+        $productItems = $this->generateProductDataForPayson($args);
+        $customerCountry = $order->getBillingAddress()->country_id;
+        if ($this->getStoreCountry() == 'SE' && $customerCountry == 'SE' && $this->vatDiscount() == 'true') {
 
-        if ($this->order_discount_item > 0) {
-            $this->prepareProductData('discount', 'discount', 1, -$this->order_discount_item, 0.0);
+            foreach ($order->getAllVisibleItems() as $item) {
+                $this->setSwedishDiscountItem($item, $total, $productItems, $order);
+            }
+            if ($this->order_discount_item > 0) {
+                switch ($this->getDiscountType()) {
+                    case Mage_SalesRule_Model_Rule::BY_PERCENT_ACTION:
+                    case Mage_SalesRule_Model_Rule::TO_PERCENT_ACTION:
+                        $this->prepareProductData('Rabatt inkl moms', 'Rabatt', 1, -$this->order_discount_item, $this->getAverageVat());
+                        break;
+                    case Mage_SalesRule_Model_Rule::BY_FIXED_ACTION:
+                        $specialDiscount = $this->order_discount_item / $this->getNumberOfItems();
+                        $this->prepareProductData('Rabatt inkl moms', 'Rabatt', $this->getNumberOfItems(), -$specialDiscount, $this->getAverageVat());
+                        break;
+                    default:
+                        $this->prepareProductData('Rabatt inkl moms', 'Rabatt', 1, -$this->order_discount_item, $this->getAverageVat());
+                        break;
+                }
+            }
+        } else {
+
+            foreach ($order->getAllVisibleItems() as $item) {
+                $this->setInternationalDiscountItem($item, $total);
+            } 
+
+            if ($this->order_discount_item > 0) {
+                $this->prepareProductData('discount', 'discount', 1, -$this->order_discount_item, 0.0);
+            }
         }
+//        
+
         // Calculate price for shipping
         $this->prepareOrderShippingData($order, $customer, $store, $total);
         $args = $this->generateProductDataForPayson($args);
@@ -404,7 +529,21 @@ class Payson_Payson_Helper_Api {
             }
         }
         $roundedTotal = round($total, 2);
+        if ($this->getStoreCountry() == 'SE' && $customerCountry == 'SE' && $this->vatDiscount() == 'true') {
+            if ($this->order_discount_item > 0) {
+                switch ($this->getDiscountType()) {
+                    case Mage_SalesRule_Model_Rule::BY_PERCENT_ACTION:
+                    case Mage_SalesRule_Model_Rule::TO_PERCENT_ACTION:
+                    case Mage_SalesRule_Model_Rule::BY_FIXED_ACTION:
+                    case Mage_SalesRule_Model_Rule::CART_FIXED_ACTION:
+                        $roundedTotal = $roundedTotal - ($this->order_discount_item * $this->getAverageVat());
+                        break;
 
+                    default:
+                        break;
+                }
+            }
+        }
         $args['receiverList.receiver(0).amount'] = $roundedTotal;
 
         $url = vsprintf(self::API_CALL_PAY, $this->getFormatIfTest($order->getStoreId()));
@@ -498,12 +637,22 @@ class Payson_Payson_Helper_Api {
      * @param	string	$content_type
      * @return	object					$this
      */
+    public function confirmationEmail($entityId) {
+        $resource = Mage::getSingleton('core/resource');
+        $db = $resource->getConnection('core_write');
+        $order_table = $resource->getTableName('sales_flat_order');
+        $status = $db->fetchRow(
+                'SELECT status FROM `' . $order_table . '` WHERE
+	entity_id = ? LIMIT 0,1', $entityId);
+
+        return $status;
+    }
+
     public function Validate($http_body, $content_type) {
 
         // Parse request done by Payson to our IPN controller
         $ipn_response = Payson_Payson_Helper_Api_Response_Standard
                 ::FromHttpBody($http_body);
-
         // Get the database connection
         $resource = Mage::getSingleton('core/resource');
         $db = $resource->getConnection('core_write');
@@ -590,7 +739,7 @@ LIMIT
         if ($order->getState() === Mage_Sales_Model_Order::STATE_COMPLETE) {
             Mage::throwException('Order is no longer active');
         }
-
+        $sendEmail = $this->confirmationEmail($order->getEntityId());
         $receivers = $ipn_response->receiverList->receiver->ToArray();
         $investigatefee = $order['base_payson_invoice_fee'];
 
@@ -605,14 +754,16 @@ LIMIT
 
         /* Verify payment amount. floor() since there might be a precision
           difference */
-
         switch ($ipn_response->status) {
             case self::STATUS_COMPLETED: {
                     //Changes the status of the order from pending_payment to processing
+                    if ($sendEmail['status'] == 'pending_payment') {
+                        $order->sendNewOrderEmail()->save();
+                    }
                     $order->setState(
                             Mage_Sales_Model_Order::STATE_PROCESSING, Mage_Sales_Model_Order::STATE_PROCESSING, $this->_config->get('test_mode') ? $this->_helper->__('Payson test completed the order payment') : $this->_helper->__('Payson completed the order payment'));
-                    $order['payson_invoice_fee']= 0;
-                    $order['base_payson_invoice_fee']=0;
+                    $order['payson_invoice_fee'] = 0;
+                    $order['base_payson_invoice_fee'] = 0;
                     //It creates the invoice to the order
                     $invoice = Mage::getModel('sales/service_order', $order)->prepareInvoice();
                     $invoice->setRequestedCaptureCase(Mage_Sales_Model_Order_Invoice::CAPTURE_ONLINE);
@@ -632,6 +783,9 @@ LIMIT
                             ($ipn_response->type === self::PAYMENT_METHOD_INVOICE) &&
                             ($ipn_response->invoiceStatus ===
                             self::INVOICE_STATUS_ORDERCREATED)) {
+                        if ($sendEmail['status'] == 'pending_payment') {
+                            $order->sendNewOrderEmail()->save();
+                        }
                         //Changes the status of the order from pending to processing
                         $order->setState(
                                 Mage_Sales_Model_Order::STATE_PROCESSING, Mage_Sales_Model_Order::STATE_PROCESSING, $this->_config->get('test_mode') ? $this->_helper->__('Payson test created an invoice') : $this->_helper->__('Payson created an invoice'));
@@ -639,7 +793,6 @@ LIMIT
                         $order->setGrandTotal($newAmount);
                         $order->setTotalDue($newAmount);
                         $order->save();
-
 
 
                         if (isset($ipn_response->shippingAddress)) {
@@ -925,8 +1078,8 @@ LIMIT
                                                     'Payson updated the shipping address')));
                         }
                     } else {
-                        $order['payson_invoice_fee']= 0;
-                        $order['base_payson_invoice_fee']=0;
+                        $order['payson_invoice_fee'] = 0;
+                        $order['base_payson_invoice_fee'] = 0;
                         $order->addStatusHistoryComment(sprintf(
                                         $this->_helper->__('Payson pinged the order with status %s'), $ipn_response->status));
                     }
@@ -935,7 +1088,7 @@ LIMIT
                 }
 
             case self::STATUS_ERROR:
-            case self::STATUS_DENIED:    
+            case self::STATUS_DENIED:
 
                 $order->cancel();
 
@@ -952,7 +1105,7 @@ LIMIT
 
                 $order->addStatusHistoryComment($this->_helper->__('The order was canceled or not completed within allocated time'));
                 break;
-                
+
             case self::STATUS_REVERSALERROR:
             default: {
                     $order->cancel();
@@ -980,12 +1133,6 @@ LIMIT
         return $this;
     }
 
-    /**
-     * http://api.payson.se/#title12
-     *
-     * @params	int		$order_id	Real order id
-     * @return	object				$this
-     */
     public function PaymentDetails($order_id) {
 
         // Get the database connection
@@ -1014,10 +1161,11 @@ AND
 LIMIT
 	0,1', $order_id);
 
-        if ($payson_order === false) {
-            Mage::throwException('Invalid order id (' . $order_id . ')');
+        try {
+            $payson_order !== false;
+        } catch (Exception $e) {
+            Mage::throwException('Invalid order id (' . $order_id . ')' . $e->getMessage());
         }
-
         $db->setFetchMode($old_fetch_mode);
 
         $args = array
@@ -1043,9 +1191,20 @@ LIMIT
             'response' => serialize($response->ToArray())
         ));
 
+        $payson_validator = $db->fetchRow(
+                'SELECT ipn_status, token FROM `' . $order_table . '` WHERE order_id = ? LIMIT 0,1', $order_id);
+        if ((!$response->IsValid()) && ($payson_validator->ipn_status == NULL && $payson_validator->token == NULL)) {
+
+            $sales_flat_order = 'sales_flat_order';
+            if ($order_id !== null && $payson_order !== false) {
+                $new_order_id = Mage::getModel('sales/order')->loadByIncrementId($order_id)->getEntityId();
+                $db->update($sales_flat_order, array('state' => 'canceled', 'status' => 'canceled'), array('entity_id = ?' => $new_order_id));
+            }
+        }
+
         if (!$response->IsValid()) {
-            throw new Mage_Core_Exception(sprintf($this->_helper->__(
-                            'Failed to retrieve payment details. Payson replied: %s'), $response->GetError()), $response->GetErrorId());
+            $redirectUrl = Mage::getUrl('checkout/cart');
+            Mage::getSingleton('checkout/session')->setRedirectUrl($redirectUrl);
         }
 
         return $this;
@@ -1120,14 +1279,6 @@ LIMIT
             'response' => serialize($response->ToArray())
         ));
 
-        /* if(!$response->IsValid())
-          {
-          // TODO: don't seem to return an errorList
-          throw new Mage_Core_Exception(sprintf($this->_helper->__(
-          'Failed to update payment. Payson replied: %s'),
-          $response->GetError()), $response->GetErrorId());
-          } */
-
         return $this;
     }
 
@@ -1148,7 +1299,6 @@ LIMIT
         array_push($stack, self::DEBUG_MODE ? "Payment" : "1.0");
 
         array_push($stack, self::DEBUG_MODE ? "" : "Payment");
-        //print_r($stack);
         return $stack;
     }
 

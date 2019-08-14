@@ -24,7 +24,7 @@ abstract class Payson_Payson_Model_Method_Abstract extends Mage_Payment_Model_Me
     /**
      * @inheritDoc
      */
-    protected $_canCancelInvoice = false;
+    protected $_canCancelInvoice = true;
 
     /*
      * Protected methods

@@ -34,7 +34,7 @@ class Payson_Payson_Model_Standard extends Mage_Payment_Model_Method_Abstract {
     /**
      * @inheritDoc
      */
-    protected $_canCancelInvoice = false;
+    protected $_canCancelInvoice = true;
 
     /*
      * Public methods
@@ -95,9 +95,11 @@ class Payson_Payson_Model_Standard extends Mage_Payment_Model_Method_Abstract {
      * @inheritDoc
      */
     public function getTitle() {
-
+        $order = Mage::registry('current_order');
+        $invoice_fee = $order->getPaysonInvoiceFee();
+        $text_invoice_fee = strip_tags($invoice_fee);
         if ($this->_config->CanStandardPayment()) {
-            return sprintf(Mage::helper('payson')->__('Checkout with Payson. If invoice is choosen as payment method an %s invoice fee will be added.'));
+            return sprintf(Mage::helper('payson')->__('Checkout with Payson. If invoice is choosen as payment method an %s invoice fee will be added.'), ($text_invoice_fee));
         } elseif ($this->_config->CanStandardPayment()) {
             return Mage::helper('payson')->__('Checkout with Payson');
         }

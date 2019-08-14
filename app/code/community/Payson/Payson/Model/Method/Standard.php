@@ -8,6 +8,7 @@ class Payson_Payson_Model_Method_Standard extends Payson_Payson_Model_Method_Abs
     protected $_canCapture = true;
     protected $_canRefund = true;
     protected $_canVoid = true;
+    protected $_canCancelInvoice = true;
 
     /**
      * @inheritDoc

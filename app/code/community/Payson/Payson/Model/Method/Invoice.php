@@ -17,6 +17,7 @@ class Payson_Payson_Model_Method_Invoice extends Payson_Payson_Model_Method_Abst
     protected $_canRefund = true;
     protected $_canVoid = true;
     protected $_canUseCheckout = false;
+    protected $_canCancelInvoice = true;
 
     /*
      * Public methods
@@ -25,11 +26,12 @@ class Payson_Payson_Model_Method_Invoice extends Payson_Payson_Model_Method_Abst
     /**
      * @inheritDoc
      */
-    
-    public function capture(Varien_Object $payment, $amount) {
-
+    public function capture(Varien_Object $payment, $amount) {       
         $order = $payment->getOrder();
-
+        $method = $order->getPayment()->getMethod();
+        if (($method !== 'payson_standard') || ($method == "payson_invoice")) {
+            return $this;
+        }
         $order_id = $order->getData('increment_id');
 
         $api = Mage::helper('payson/api');
@@ -48,7 +50,16 @@ class Payson_Payson_Model_Method_Invoice extends Payson_Payson_Model_Method_Abst
         } else {
             Mage::throwException($helper->__('Payson is not ready to create an invoice. Please try again later.'));
         }
-
         return $this;
-    }   
+    }
+
+    public function authorize(Varien_Object $payment, $amount) {
+        $order = $payment->getOrder();
+        $method = $order->getPayment()->getMethod();
+        if (($method !== 'payson_standard') || ($method == "payson_invoice")) {
+            return $this;
+        }
+        $payment->setTransactionId('auth')->setIsTransactionClosed(0);
+        return $this;
+    }
 }

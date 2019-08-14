@@ -3,10 +3,10 @@
     "type": "magento-module",
     "license": "BSD-licence",
     "homepage": "",
-    "description": "Official Payson module for Magento. ",
+    "description": "Official Payson module for Magento.",
     "authors": [
     {
-        "name": "Karl Brundin",
+        "name": "Oscar Villegas",
         "email": "integration@payson.se"
     }
 ],

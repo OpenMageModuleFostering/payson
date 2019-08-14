@@ -15,12 +15,9 @@ class Payson_Payson_Adminhtml_Sales_Order_ShipmentController extends Mage_Adminh
                 $transactionSave = Mage::getModel('core/resource_transaction')
                         ->addObject($invoice)
                         ->addObject($invoice->getOrder());
-                $transactionSave->save();
-
-
-            parent::saveAction();
+                $transactionSave->save();            
         }
-
+        parent::saveAction();
     }
 
 }
