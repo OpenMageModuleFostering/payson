@@ -5,7 +5,7 @@
     "homepage": "",
     "description": "Official Payson module for Magento. Use this to be able to handle invoice, card and direct bank transfers in your store. 
 
-! Requires a contract with Payson. Read more here (https://www.payson.se/ebutik)",
+        ! Requires a contract with Payson. Read more here (https://www.payson.se/ebutik)",
     "authors": [
     {
         "name": "Daniel Hansen",

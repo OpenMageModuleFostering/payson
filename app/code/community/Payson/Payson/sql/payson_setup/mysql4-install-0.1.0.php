@@ -1,4 +1,5 @@
 <?php
+
 $this->startSetup();
 $this->run('
 CREATE TABLE IF NOT EXISTS `' . $this->getTable('payson_order') . '`
@@ -24,20 +25,8 @@ CREATE TABLE IF NOT EXISTS `' . $this->getTable('payson_order_log') . '`
 	PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;');
 
-/*$this->addAttribute('quote', 'payson_invoice_fee', 
-	array('type' => 'decimal(12,4)', 'grid' => false));
-$this->addAttribute('quote', 'base_payson_invoice_fee', 
-	array('type' => 'decimal(12,4)', 'grid' => false));*/
-
-$this->addAttribute('order', 'payson_invoice_fee', 
-	array('type' => 'decimal', 'grid' => false));
-$this->addAttribute('order', 'base_payson_invoice_fee', 
-	array('type' => 'decimal', 'grid' => false));
-
-/*$this->addAttribute('invoice', 'payson_invoice_fee', 
-	array('type' => 'decimal', 'grid' => false));
-$this->addAttribute('invoice', 'base_payson_invoice_fee', 
-	array('type' => 'decimal', 'grid' => false));*/
+$this->addAttribute('order', 'payson_invoice_fee', array('type' => 'decimal', 'grid' => false));
+$this->addAttribute('order', 'base_payson_invoice_fee', array('type' => 'decimal', 'grid' => false));
 
 $this->endSetup();
 
