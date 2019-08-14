@@ -51,8 +51,8 @@
                             <show_in_store>0</show_in_store>
                         </agent_id>
                         <md5_key translate="label,comment">
-                            <label>MD5 key</label>
-                            <comment>MD5 key is found on your Payson profile page.</comment>
+                            <label>API key</label>
+                            <comment>API key is found on your Payson profile page.</comment>
                             <frontend_type>text</frontend_type>
                             <sort_order>40</sort_order>
                             <show_in_default>1</show_in_default>
@@ -79,44 +79,6 @@
                             <show_in_website>0</show_in_website>
                             <show_in_store>0</show_in_store>
                         </payment_guarantee>                  
-                        <!--<active_invoice translate="label,comment">
-                            <label>Enable Invoice</label>
-                            <comment>Enable/disable invoice payment with Payson.</comment>
-                            <frontend_type>select</frontend_type>
-                            <source_model>adminhtml/system_config_source_yesno</source_model>
-                            <sort_order>43</sort_order>
-                            <show_in_default>1</show_in_default>
-                            <show_in_website>1</show_in_website>
-                            <show_in_store>1</show_in_store>
-                        </active_invoice>
-                        <invoice_fee_tax translate="label,comment">                           
-                            <label>Invoice fee tax</label>
-                            <comment>Tax class for invoice fees.</comment>
-                            <frontend_type>select</frontend_type>
-                            <source_model>adminhtml/system_config_source_shipping_taxclass</source_model>
-                            <sort_order>50</sort_order>
-                            <show_in_default>1</show_in_default>
-                            <show_in_website>1</show_in_website>
-                            <show_in_store>1</show_in_store>
-                        </invoice_fee_tax>
-                        <invoice_fee_sek translate="label,comment">
-                            <label>Invoice fee (SEK)</label>
-                            <comment>Invoice fee for SEK excluding tax.</comment>
-                            <frontend_type>text</frontend_type>
-                            <sort_order>55</sort_order>
-                            <show_in_default>1</show_in_default>
-                            <show_in_website>1</show_in_website>
-                            <show_in_store>1</show_in_store>
-                        </invoice_fee_sek>
-                        <invoice_fee_eur translate="label,comment">
-                            <label>Invoice fee (EUR)</label>
-                            <comment>Invoice fee for EUR excluding tax.</comment>
-                            <frontend_type>text</frontend_type>
-                            <sort_order>60</sort_order>
-                            <show_in_default>1</show_in_default>
-                            <show_in_website>1</show_in_website>
-                            <show_in_store>1</show_in_store>
-                        </invoice_fee_eur>-->
                         <restore_on_cancel translate="label,comment">
                             <label>Restore cart on cancel</label>
                             <comment>Restore cart when customer cancel the payment</comment>

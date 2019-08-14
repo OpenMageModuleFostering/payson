@@ -12,7 +12,7 @@ Mage_Sales_Model_Order_Creditmemo_Total_Abstract {
         if(!$this->_config->CanInvoicePayment()){
             return $this;
         }
-        if ($method !== 'payson_standard') {
+        if (($method !== 'payson_standard')||($method == "payson_invoice")) {
             return $this;
         }
 

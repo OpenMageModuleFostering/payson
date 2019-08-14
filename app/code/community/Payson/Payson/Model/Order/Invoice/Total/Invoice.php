@@ -11,7 +11,7 @@ Mage_Sales_Model_Order_Invoice_Total_Abstract {
             return $this;
         }
         $method = $order->getPayment()->getMethodInstance()->getCode();
-        if ($method !== 'payson_standard') {
+        if (($method !== 'payson_standard')||($method == "payson_invoice")) {
             return $this;
         }
         if ($order->hasInvoices() == 0) {

@@ -20,7 +20,7 @@ class Payson_Payson_Model_Quote_Address_Total_Invoice extends Mage_Sales_Model_Q
         if (!$this->_config->CanInvoicePayment()) {
             return $this;
         }   
-        if ($method !== 'payson_standard') {
+        if (($method !== 'payson_standard')||($method == "payson_invoice")) {
             return $this;
         }
 

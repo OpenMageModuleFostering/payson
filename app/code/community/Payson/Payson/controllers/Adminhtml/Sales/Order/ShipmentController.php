@@ -8,7 +8,7 @@ class Payson_Payson_Adminhtml_Sales_Order_ShipmentController extends Mage_Adminh
 
         $order = Mage::getModel('sales/order')->load($this->getRequest()->getParam('order_id'));
         
-        if ($order->getPayment()->getMethodInstance()->getCode() == "payson_standard") {
+        if (($order->getPayment()->getMethodInstance()->getCode() == "payson_standard")||($order->getPayment()->getMethodInstance()->getCode() == "payson_invoice")) {
                 $invoice = Mage::getModel('sales/service_order', $order)->prepareInvoice();
                 $invoice->setRequestedCaptureCase(Mage_Sales_Model_Order_Invoice::CAPTURE_ONLINE);                              
                 $invoice->register();
@@ -20,6 +20,7 @@ class Payson_Payson_Adminhtml_Sales_Order_ShipmentController extends Mage_Adminh
 
             parent::saveAction();
         }
+
     }
 
 }
