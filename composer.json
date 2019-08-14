@@ -1,11 +1,9 @@
 {
     "name": "OpenMageModuleFostering/Payson",
     "type": "magento-module",
-    "license": "BSD",
+    "license": "BSD-License",
     "homepage": "",
-    "description": "Official Payson module for Magento. Use this to be able to handle invoice, card and direct bank transfers in your store. 
-
-        ! Requires a contract with Payson. Read more here (https://www.payson.se/ebutik)",
+    "description": "Official Payson module for Magento. Use this to be able to handle invoice, card and direct bank transfers in your store.",
     "authors": [
     {
         "name": "Daniel Hansen",

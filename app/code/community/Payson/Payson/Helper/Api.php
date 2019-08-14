@@ -13,7 +13,7 @@ class Payson_Payson_Helper_Api {
     const PAY_FORWARD_URL = '%s://%s%s.payson.%s/paySecure/';
     const APPLICATION_ID = 'Magento';
     const MODULE_NAME = 'payson_magento';
-    const MODULE_VERSION = '1.2.2';
+    const MODULE_VERSION = '1.2.3';
     const DEBUG_MODE_MAIL = 'testagent-1@payson.se';
     const DEBUG_MODE_AGENT_ID = '1';
     const DEBUG_MODE_MD5 = 'fddb19ac-7470-42b6-a91d-072cb1495f0a';
@@ -125,7 +125,7 @@ class Payson_Payson_Helper_Api {
         }
 
         $productOptions = $item->getProductOptions();
-        
+
         if (array_key_exists('attributes_info', $productOptions)) {
             foreach ($productOptions['attributes_info'] as $attribute) {
                 $attributesString .= $attribute['label'] . ": " . $attribute['value'] . ", ";
@@ -246,6 +246,15 @@ class Payson_Payson_Helper_Api {
      * @param	object	$order
      * @return	object					$this
      */
+    public function showReceiptPage() {
+        $Config = (int) $this->_config->get('show_receipt_page');
+        $reciept2 = 'false';
+        if ($Config === 1) {
+            $reciept2 = 'true';
+        }
+        return $reciept2;
+    }
+
     public function Pay(Mage_Sales_Model_Order $order) {
         $payment_method = $order->getPayment()->getMethod();
 
@@ -297,7 +306,8 @@ class Payson_Payson_Helper_Api {
             $billing_address->getLastname(),
             'receiverList.receiver(0).email' =>
             $this->_config->get('test_mode') ? self::DEBUG_MODE_MAIL : $this->_config->Get('email'),
-            'trackingId' => $order->getRealOrderId()
+            'trackingId' => $order->getRealOrderId(),
+            'showReceiptPage' => $this->showReceiptPage()
         );
 
         if (!$this->_config->CanPaymentGuarantee()) {
