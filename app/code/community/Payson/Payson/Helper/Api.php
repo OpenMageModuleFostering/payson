@@ -13,7 +13,7 @@ class Payson_Payson_Helper_Api {
     const PAY_FORWARD_URL = '%s://%s%s.payson.%s/paySecure/';
     const APPLICATION_ID = 'Magento';
     const MODULE_NAME = 'payson_magento';
-    const MODULE_VERSION = '1.2.3';
+    const MODULE_VERSION = '1.2.6';
     const DEBUG_MODE_MAIL = 'testagent-1@payson.se';
     const DEBUG_MODE_AGENT_ID = '1';
     const DEBUG_MODE_MD5 = 'fddb19ac-7470-42b6-a91d-072cb1495f0a';
@@ -417,6 +417,8 @@ class Payson_Payson_Helper_Api {
      * @param	string	$content_type
      * @return	object					$this
      */
+
+
     public function Validate($http_body, $content_type) {
 
         // Parse request done by Payson to our IPN controller
@@ -517,6 +519,16 @@ LIMIT
         }
 
         $receivers = $ipn_response->receiverList->receiver->ToArray();
+        $investigatefee = $order['base_payson_invoice_fee'];
+
+        $new_receivers = array();
+        foreach ($receivers as $item) {
+            foreach ($item as $key => $value) {
+                $new_receivers[$key] = $value;
+            }
+        }
+        $currentAmount = $new_receivers['amount'];
+        $newAmount = $currentAmount += $investigatefee;
 
         /* Verify payment amount. floor() since there might be a precision
           difference */
@@ -530,7 +542,8 @@ LIMIT
                     //Changes the status of the order from pending_payment to processing
                     $order->setState(
                             Mage_Sales_Model_Order::STATE_PROCESSING, Mage_Sales_Model_Order::STATE_PROCESSING, $this->_config->get('test_mode') ? $this->_helper->__('Payson test completed the order payment') : $this->_helper->__('Payson completed the order payment'));
-
+                    $order['payson_invoice_fee']= 0;
+                    $order['base_payson_invoice_fee']=0;
                     //It creates the invoice to the order
                     $invoice = Mage::getModel('sales/service_order', $order)->prepareInvoice();
                     $invoice->setRequestedCaptureCase(Mage_Sales_Model_Order_Invoice::CAPTURE_ONLINE);
@@ -553,7 +566,10 @@ LIMIT
                         //Changes the status of the order from pending to processing
                         $order->setState(
                                 Mage_Sales_Model_Order::STATE_PROCESSING, Mage_Sales_Model_Order::STATE_PROCESSING, $this->_config->get('test_mode') ? $this->_helper->__('Payson test created an invoice') : $this->_helper->__('Payson created an invoice'));
-
+                        $order->setBaseGrandTotal($newAmount);
+                        $order->setGrandTotal($newAmount);
+                        $order->setTotalDue($newAmount);
+                        $order->save();
 
 
                         if (isset($ipn_response->shippingAddress)) {
@@ -841,6 +857,8 @@ LIMIT
                     } else {
                         $order->addStatusHistoryComment(sprintf(
                                         $this->_helper->__('Payson pinged the order with status %s'), $ipn_response->status));
+                        $order['payson_invoice_fee']= 0;
+                        $order['base_payson_invoice_fee']=0;
                     }
 
                     break;
