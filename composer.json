@@ -1,16 +1,19 @@
 {
-    "name": "OpenMageModuleFostering/Payson",
+    "name": "OpenMageModuleFostering\/Payson",
     "type": "magento-module",
     "license": "BSD-licence",
     "homepage": "",
     "description": "Official Payson module for Magento.",
     "authors": [
-    {
-        "name": "Oscar Villegas",
-        "email": "integration@payson.se"
-    }
-],
+        {
+            "name": "Oscar Villegas",
+            "email": "integration@payson.se"
+        }
+    ],
     "suggest": {
-        "magento-hackathon/magento-composer-installer": "*"
-    }
+        "magento-hackathon\/magento-composer-installer": "*"
+    },
+    "keywords": [
+        "openmage-module"
+    ]
 }
